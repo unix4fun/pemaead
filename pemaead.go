@@ -37,12 +37,6 @@ const (
 	KeyLength  = 32
 	SaltLength = 32
 
-	/*
-		HeaderAesPbkdf  = "AES-256-GCM"
-		HeaderAesScrypt = "AES-256-GCM-S"
-		HeaderAesArgon  = "AES-256-GCM-A"
-	*/
-
 	AEADPemFileHeader = "PEMAEAD FILE"
 	AEADFormat        = "AEAD,%02d%02d,%x,%x"
 
@@ -109,14 +103,14 @@ func deriveKey(derivation uint8, salt, password []byte) (dkey []byte, err error)
 type File struct {
 	// let's build the header right away
 	// buffer we write onto before Close() (== Seal())
-	key        []byte
-	cipher     uint8
-	derivation uint8
-	nonce      []byte
-	buf        bytes.Buffer
-	c          cipher.AEAD
-	header     map[string]string
-	w          io.Writer
+	key        []byte            // derived key
+	nonce      []byte            // nonce to be used
+	cipher     uint8             // which cipher we use
+	derivation uint8             // which derivation algorithm
+	w          io.Writer         // the Writer output
+	c          cipher.AEAD       // the Cipher in GCM mode
+	header     map[string]string // the PEM file header
+	buf        bytes.Buffer      // the buffer we Read/Write from/to
 }
 
 //func NewWriter(w io.Writer, password []byte, cipher, derivation uint8) (*AEADPemFile, error) {
@@ -163,12 +157,12 @@ func NewWriter(w io.Writer, password []byte, c, d uint8) (io.WriteCloser, error)
 
 	a := &File{
 		key:        key,       // already derived
+		nonce:      nonce,     // our Nonce
 		cipher:     c,         // cipher
 		derivation: d,         // derivation
-		c:          aesGcm,    // AEAD interface
-		nonce:      nonce,     // our Nonce
-		header:     ourHeader, // header so that we don't have to build it
 		w:          w,         // where we write at the end.
+		c:          aesGcm,    // AEAD interface
+		header:     ourHeader, // header so that we don't have to build it
 	}
 
 	return a, nil
@@ -274,129 +268,3 @@ func NewReader(r io.Reader, password []byte) (io.Reader, error) {
 func (a *File) Read(b []byte) (n int, err error) {
 	return a.buf.Read(b)
 }
-
-// IsEncryptedPemFile take a filename and try to verify if it's a PEM format
-// file. The function rely on x509.IsEncryptedPEMBlock() function and return a
-// bool.
-func IsEncryptedPemFile(file string) bool {
-	fileBuf, err := ioutil.ReadFile(file)
-	if err != nil {
-		return false
-	}
-
-	pemBlockBuf, _ := pem.Decode(fileBuf)
-	if pemBlockBuf == nil {
-		return false
-	}
-	return x509.IsEncryptedPEMBlock(pemBlockBuf)
-}
-
-// AEADDecryptPEMBlock takes a password encrypted PEM block and the password used to
-// encrypt it and returns a slice of decrypted DER encoded bytes. It inspects
-// the DEK-Info header to determine the algorithm used for decryption. If no
-// DEK-Info header is present, an error is returned. If an incorrect password
-// is detected an IncorrectPasswordError is returned.
-
-/*
-func AEADDecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
-	AesHash := sha3.New256
-
-	dek, ok := b.Headers["DEK-Info"]
-	if !ok {
-		return nil, errors.New("AEADDecryptPEMBlock: no DEK-Info header in block")
-	}
-
-	dekData := strings.Split(dek, ",")
-	if len(dekData) != 3 {
-		return nil, errors.New("AEADDecryptPEMBlock: malformed DEK-Info header")
-	}
-
-	hexNonce, hexSalt := dekData[1], dekData[2]
-	nonce, err := hex.DecodeString(hexNonce)
-	if err != nil {
-		return nil, err
-	}
-
-	salt, err := hex.DecodeString(hexSalt)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(salt) != 8 {
-		return nil, errors.New("AEADDecryptPEMBlock: incorrect salt size")
-	}
-
-	// let's PBKDF2 first..
-	ourKey := pbkdf2.Key(password, salt, 16384, 32, AesHash)
-	aesraw, err := aes.NewCipher(ourKey)
-	if err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: AES key setup failed: " + err.Error())
-	}
-	aesgcm, err := cipher.NewGCM(aesraw)
-	if err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: GCM failed: " + err.Error())
-	}
-
-	if len(nonce) != aesgcm.NonceSize() {
-		return nil, errors.New("AEADDecryptPEMBlock: incorrect nonce size")
-	}
-
-	plaintext, err := aesgcm.Open(nil, nonce, b.Bytes, []byte(dek))
-	if err != nil {
-		return nil, errors.New("AEADDecryptPEMBlock: wrong parameters")
-	}
-
-	return plaintext, nil
-}
-*/
-
-// AEADEncryptPEMBlock returns a PEM block of the specified type holding the
-// given DER-encoded data encrypted with AES-GCM256 algorithm, key is derived
-// using PBKDF2 on the password.
-// Header will be :
-/*
-func AEADEncryptPEMBlock(rand io.Reader, blockType string, data, password []byte) (*pem.Block, error) {
-	hashFunc := sha3.New256
-
-	salt := make([]byte, 8)
-	_, err := io.ReadFull(rand, salt)
-	if err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: no rand: " + err.Error())
-	}
-
-	// let's PBKDF2 first..
-	ourKey := pbkdf2.Key(password, salt, 16384, 32, hashFunc)
-	aesraw, err := aes.NewCipher(ourKey)
-	if err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: AES key setup failed: " + err.Error())
-	}
-	aesgcm, err := cipher.NewGCM(aesraw)
-	if err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: GCM failed: " + err.Error())
-	}
-
-	// this is our nonce
-	nonce := make([]byte, aesgcm.NonceSize())
-	if _, err := io.ReadFull(rand, nonce); err != nil {
-		return nil, errors.New("AEADEncryptPEMBlock: cannot generate Nonce: " + err.Error())
-	}
-
-	// allocate data
-	//encrypted := make([]byte, len(data)+aesgcm.Overhead())
-
-	// this is our header aka ad
-	ourHeader := make(map[string]string)
-	ourHeader["Proc-Type"] = "4,ENCRYPTED"
-	ourHeader["DEK-Info"] = "AES-256-GCM" + "," + hex.EncodeToString(nonce) + "," + hex.EncodeToString(salt)
-
-	// encrypt & authenticate
-	encrypted := aesgcm.Seal(nil, nonce, data, []byte(ourHeader["DEK-Info"]))
-
-	// we're done.
-	return &pem.Block{
-		Type:    blockType,
-		Headers: ourHeader,
-		Bytes:   encrypted,
-	}, nil
-}
-*/
