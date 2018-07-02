@@ -107,14 +107,14 @@ type File struct {
 	nonce      []byte            // nonce to be used
 	cipher     uint8             // which cipher we use
 	derivation uint8             // which derivation algorithm
-	w          io.Writer         // the Writer output
+	w          io.WriteCloser    // the Writer output
 	c          cipher.AEAD       // the Cipher in GCM mode
 	header     map[string]string // the PEM file header
 	buf        bytes.Buffer      // the buffer we Read/Write from/to
 }
 
 //func NewWriter(w io.Writer, password []byte, cipher, derivation uint8) (*AEADPemFile, error) {
-func NewWriter(w io.Writer, password []byte, c, d uint8) (io.WriteCloser, error) {
+func NewWriter(w io.WriteCloser, password []byte, c, d uint8) (io.WriteCloser, error) {
 	var nonce []byte
 	var aesGcm cipher.AEAD
 	salt := make([]byte, SaltLength)
@@ -181,7 +181,11 @@ func (a *File) Close() (err error) {
 		Headers: a.header,
 		Bytes:   encrypted,
 	}
-	return pem.Encode(a.w, pemBlock)
+	err = pem.Encode(a.w, pemBlock)
+	if err != nil {
+		return err
+	}
+	return a.w.Close()
 }
 
 //func NewReader(r io.Reader, password []byte) (*AEADPemFile, error) {
