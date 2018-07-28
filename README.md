@@ -18,7 +18,7 @@ Using AES-GCM-256 encryption mode & Argon2id key derivation by default, a random
 ## Usage Examples
 
 Important notes:
-* Write() is only bufferizing, the call to Close() will actually write your data, keep that in mind.
+* Write() is only buffering, the call to Close() will actually write your data, keep that in mind.
 * Close() will close the underlying fd provided to the Writer.
   
 ### Writer
