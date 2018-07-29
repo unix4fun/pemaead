@@ -46,12 +46,12 @@ Important notes:
     if err != nil {
       return err
     }
-    defer fd.Close()
     
     pemfd, err := pemaead.NewReader(fd, password)
     if err != nil {
       return err
     }
+    defer pemfd.Close()
     
     data, err := ioutil.ReadAll(pemfd)
     if err != nil {
