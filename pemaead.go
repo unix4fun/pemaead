@@ -46,6 +46,7 @@ const (
 
 	CipherAESGCM = 0x00
 	//CipherNaCL   = 0x01 // we dont support it yet
+	//CipherPQ1    = 0x02 // not yet ready..
 
 	// uint16
 	// 0000 0000 // unused for now..
@@ -61,6 +62,7 @@ const (
 	// 00 == aes-gcm
 	// 01 == nacl
 
+	Version = "0.1.0"
 )
 
 var (
