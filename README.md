@@ -42,8 +42,8 @@ Important notes:
   
 ### Reader
 
-		...
-		fd, err := os.Open(fileName)
+  ...
+  fd, err := os.Open(fileName)
 		if err != nil {
 			return err
 		}
