@@ -43,20 +43,20 @@ Important notes:
 ### Reader
     ...
     fd, err := os.Open(fileName)
-		if err != nil {
-			return err
-		}
-		defer fd.Close()
-		
-		pemfd, err := pemaead.NewReader(fd, password)
-		if err != nil {
-			return err
-		}
-		
-		data, err := ioutil.ReadAll(pemfd)
-		if err != nil {
-			return err
-		}
+    if err != nil {
+      return err
+    }
+    defer fd.Close()
+    
+    pemfd, err := pemaead.NewReader(fd, password)
+    if err != nil {
+      return err
+    }
+    
+    data, err := ioutil.ReadAll(pemfd)
+    if err != nil {
+      return err
+    }
 
 
 ## TODO
