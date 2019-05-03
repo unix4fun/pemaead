@@ -26,9 +26,9 @@ const (
 	ArgonCostThreads = 8
 
 	// more up to date parameters
-	ScryptCostParam = 65536
-	ScryptCostN     = 16
-	ScryptCostP     = 4
+	ScryptParamN = 65536
+	ScryptParamR = 16
+	ScryptParamP = 4
 
 	// insecure by now..
 	Pbkdf2Iteration = 16384
@@ -92,7 +92,7 @@ func deriveKey(derivation uint8, salt, password []byte) (dkey []byte, err error)
 		dkey = pbkdf2.Key(password, salt, Pbkdf2Iteration, KeyLength, sha3.New256)
 		return
 	case DerivateScrypt:
-		dkey, err = scrypt.Key([]byte(password), salt, ScryptCostParam, ScryptCostN, ScryptCostP, KeyLength)
+		dkey, err = scrypt.Key([]byte(password), salt, ScryptParamN, ScryptParamR, ScryptParamP, KeyLength)
 		return
 	case DerivateArgon2:
 		fallthrough
